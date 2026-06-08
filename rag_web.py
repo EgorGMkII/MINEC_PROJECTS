@@ -21,7 +21,7 @@ from rag_support import (
 from summary_rag import SimpleRAGPipeline
 
 
-APP_TITLE = "Simple RAG для согласования изменений госпрограмм"
+APP_TITLE = "Проверка изменений в госпрограммы"
 DEFAULT_TOP_K = int(os.getenv("RAG_TOP_K", "20"))
 DEFAULT_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "1400"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "250"))
@@ -496,7 +496,7 @@ def render_page(
   </div>
   <main class="shell">
     <section class="hero">
-      <h1>Simple RAG для согласования изменений госпрограмм</h1>
+      <h1>Проверка изменений в госпрограммы</h1>
         <p class="lead">
         Загрузите пакет проекта изменений, включая основной проект и приложения, региональную программу, федеральную программу и дополнительные документы.
         Нормативная база лежит внутри сервиса и автоматически участвует в retrieval.
