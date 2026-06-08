@@ -1,0 +1,6 @@
+__pycache__/
+.ipynb_checkpoints/
+docx_dump/
+tests.ipynb
+answer.docx
+notebook_rag_demo.md

@@ -1,0 +1,46 @@
+# Python cache
+__pycache__/
+.ipynb_checkpoints/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local secrets and environment files
+.env
+.env.*
+*.env
+
+# Notebook and local artifacts
+tests.ipynb
+
+# Generated outputs
+answer.docx
+docx_dump/
+*.log
+
+# Summary/cache artifacts
+**/summaries/
+**/*.meta.json
+
+# Document corpora and local document folders
+66-п/
+docx_dump/
+test_cases/
+npa/
+УФАС/
+GOVNO/
+
+# Office and document files
+*.doc
+*.docx
+*.pdf
+*.txt
+*.rtf
+*.xls
+*.xlsx
+*.csv
+*.ppt
+*.pptx
