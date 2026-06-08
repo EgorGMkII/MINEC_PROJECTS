@@ -26,16 +26,16 @@ docx_dump/
 **/*.meta.json
 
 # Document corpora and local document folders
-66-п/
-docx_dump/
-test_cases/
-npa/
-УФАС/
-GOVNO/
+# 66-п/
+# docx_dump/
+# test_cases/
+# npa/
+# УФАС/
+
 
 # Office and document files
 *.doc
-*.docx
+# *.docx
 *.pdf
 *.txt
 *.rtf
