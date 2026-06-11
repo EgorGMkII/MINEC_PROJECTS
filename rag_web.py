@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import os
+import re
 import traceback
 from io import BytesIO
 from typing import Any
@@ -11,6 +12,7 @@ from docx import Document
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 
+from old_prompt import OLD_SYSTEM_PROMPT
 from rag_support import (
     DEFAULT_ANALYSIS_TASK,
     DEFAULT_SYSTEM_PROMPT,
@@ -22,11 +24,26 @@ from summary_rag import SimpleRAGPipeline
 
 
 APP_TITLE = "Проверка изменений в госпрограммы"
+PUBLIC_APP_TITLE = "Проект заключения на изменения в госпрограммы"
+DEVELOPER_MODE = True
 DEFAULT_TOP_K = int(os.getenv("RAG_TOP_K", "20"))
 DEFAULT_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "1400"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "250"))
 
 app = FastAPI(title=APP_TITLE)
+
+
+def get_app_title() -> str:
+    return APP_TITLE if DEVELOPER_MODE else PUBLIC_APP_TITLE
+
+
+def get_default_system_prompt() -> str:
+    return DEFAULT_SYSTEM_PROMPT if DEVELOPER_MODE else OLD_SYSTEM_PROMPT
+
+
+def render_inline_markup(text: str) -> str:
+    escaped = html.escape(text)
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
 
 
 def render_docx_preview_html(filename: str, content: bytes) -> str:
@@ -56,7 +73,7 @@ def render_docx_preview_html(filename: str, content: bytes) -> str:
       color: #1f1b18;
     }}
     main {{
-      max-width: 980px;
+      max-width: 1274px;
       margin: 0 auto;
       padding: 24px 18px 40px;
     }}
@@ -110,9 +127,8 @@ def render_page(
     error: str = "",
     debug_data: dict[str, Any] | None = None,
     usage_data: dict[str, Any] | None = None,
-    system_prompt_value: str = DEFAULT_SYSTEM_PROMPT,
 ) -> str:
-    system_prompt_value = system_prompt_value or DEFAULT_SYSTEM_PROMPT
+    app_title = get_app_title()
     npa_items = "".join(
         f"<li>{html.escape(NPA_LABELS.get(name, name))}</li>"
         for name in list_npa_files()
@@ -134,7 +150,7 @@ def render_page(
     answer_html = ""
     if answer:
         paragraphs = [block.strip() for block in answer.split("\n\n") if block.strip()]
-        answer_html = "".join(f"<p>{html.escape(block)}</p>" for block in paragraphs)
+        answer_html = "".join(f"<p>{render_inline_markup(block)}</p>" for block in paragraphs)
 
     error_html = f"<div class='error'>{html.escape(error)}</div>" if error else ""
 
@@ -182,7 +198,7 @@ def render_page(
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{html.escape(APP_TITLE)}</title>
+  <title>{html.escape(app_title)}</title>
   <style>
     :root {{
       --panel: rgba(255, 251, 245, 0.92);
@@ -203,7 +219,7 @@ def render_page(
       font-family: Calibri, Arial, sans-serif;
     }}
     .shell {{
-      max-width: 1180px;
+      max-width: 1534px;
       margin: 0 auto;
       padding: 28px 18px 36px;
     }}
@@ -313,6 +329,34 @@ def render_page(
     }}
     .preview-list ul {{
       margin-top: 8px;
+      padding-left: 0;
+      list-style: none;
+    }}
+    .preview-list li {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }}
+    .preview-remove {{
+      width: auto;
+      min-width: 24px;
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--accent);
+      box-shadow: none;
+      font-weight: 700;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+    }}
+    .preview-remove:hover {{
+      transform: none;
+      color: #7f2f23;
+    }}
+    .preview-open {{
+      text-align: left;
     }}
     .hint {{
       color: var(--muted);
@@ -323,44 +367,6 @@ def render_page(
       display: flex;
       gap: 12px;
       margin-top: 6px;
-    }}
-    .developer-box {{
-      margin-top: 8px;
-      padding: 14px;
-      border: 1px dashed rgba(139, 58, 47, 0.22);
-      border-radius: 16px;
-      background: rgba(255,255,255,0.56);
-    }}
-    .developer-box[hidden] {{
-      display: none;
-    }}
-    .developer-toggle {{
-      width: auto;
-      padding: 7px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.82);
-      color: var(--accent);
-      border: 1px solid rgba(139, 58, 47, 0.18);
-      box-shadow: none;
-      font-weight: 700;
-      font-size: 0.92rem;
-    }}
-    .developer-toggle:hover {{
-      transform: none;
-      background: rgba(255,255,255,0.95);
-    }}
-    .developer-box textarea {{
-      width: 100%;
-      min-height: 260px;
-      padding: 12px 14px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.9);
-      color: var(--ink);
-      resize: vertical;
-      font-family: Consolas, "Courier New", monospace;
-      font-size: 0.94rem;
-      line-height: 1.45;
     }}
     button {{
       width: 100%;
@@ -496,7 +502,7 @@ def render_page(
   </div>
   <main class="shell">
     <section class="hero">
-      <h1>Проверка изменений в госпрограммы</h1>
+      <h1>{html.escape(app_title)}</h1>
         <p class="lead">
         Загрузите пакет проекта изменений, включая основной проект и приложения, региональную программу, федеральную программу и дополнительные документы.
         Нормативная база лежит внутри сервиса и автоматически участвует в retrieval.
@@ -509,18 +515,6 @@ def render_page(
         {error_html}
         <div class="field">
           <div class="field-head">
-            <label>Режим разработчика</label>
-            <div class="field-tools">
-              <button type="button" id="developer-toggle" class="developer-toggle" aria-expanded="false">Показать prompt</button>
-            </div>
-          </div>
-          <div id="developer-box" class="developer-box" hidden>
-            <p class="hint">Здесь можно отредактировать основной prompt. В обработку пойдёт именно этот текст.</p>
-            <textarea id="system_prompt" disabled>{html.escape(system_prompt_value)}</textarea>
-          </div>
-        </div>
-        <div class="field">
-          <div class="field-head">
             <label for="project_changes_file">Проект изменений (проект + приложения)</label>
             <div class="field-tools">
               <button type="button" class="slot-clear" data-clear-slot="project_changes_file" data-preview-target="project_changes_file_preview">Очистить</button>
@@ -531,7 +525,7 @@ def render_page(
         </div>
         <div class="field">
           <div class="field-head">
-            <label for="regional_program_file">Региональная программа (базовый документ)</label>
+            <label for="regional_program_file">Региональная программа</label>
             <div class="field-tools">
               <button type="button" class="slot-clear" data-clear-slot="regional_program_file" data-preview-target="regional_program_file_preview">Очистить</button>
             </div>
@@ -655,14 +649,31 @@ def render_page(
       const list = document.createElement("ul");
       files.forEach((file, index) => {{
         const item = document.createElement("li");
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "preview-remove";
+        removeButton.dataset.removeFile = inputId;
+        removeButton.dataset.removeIndex = String(index);
+        removeButton.setAttribute("aria-label", `Удалить ${{file.name}}`);
+        removeButton.textContent = "×";
         const button = document.createElement("button");
         button.type = "button";
+        button.className = "preview-open";
         button.dataset[dataKey] = String(index);
         button.textContent = `Открыть: ${{file.name}}`;
+        item.appendChild(removeButton);
         item.appendChild(button);
         list.appendChild(item);
       }});
       preview.appendChild(list);
+    }}
+
+    function removeMultiFile(inputId, index, previewId, dataKey) {{
+      const files = multiFileState[inputId] || [];
+      if (index < 0 || index >= files.length) return;
+      multiFileState[inputId] = files.filter((_, currentIndex) => currentIndex !== index);
+      syncMultiInputFiles(inputId);
+      updateMultiPreview(inputId, previewId, dataKey);
     }}
 
     function renderMultiPreview(inputId, previewId, dataKey) {{
@@ -740,6 +751,18 @@ def render_page(
         return;
       }}
 
+      const removeButton = event.target.closest("[data-remove-file]");
+      if (removeButton) {{
+        const inputId = removeButton.getAttribute("data-remove-file");
+        const index = Number(removeButton.getAttribute("data-remove-index"));
+        if (inputId === "project_changes_file") {{
+          removeMultiFile("project_changes_file", index, "project_changes_file_preview", "previewProjectChangesFile");
+        }} else if (inputId === "extra_documents") {{
+          removeMultiFile("extra_documents", index, "extra_documents_preview", "previewExtra");
+        }}
+        return;
+      }}
+
       const extraButton = event.target.closest("[data-preview-extra]");
       if (extraButton) {{
         const index = Number(extraButton.getAttribute("data-preview-extra"));
@@ -761,31 +784,6 @@ def render_page(
     const clearAll = document.getElementById("clear-all");
     const analyzeForm = document.getElementById("analyze-form");
     const loadingOverlay = document.getElementById("loading-overlay");
-    const developerToggle = document.getElementById("developer-toggle");
-    const developerBox = document.getElementById("developer-box");
-    const systemPromptField = document.getElementById("system_prompt");
-    if (developerToggle && developerBox) {{
-      developerToggle.addEventListener("click", () => {{
-        const isHidden = developerBox.hasAttribute("hidden");
-        if (isHidden) {{
-          developerBox.removeAttribute("hidden");
-          developerToggle.textContent = "Скрыть prompt";
-          developerToggle.setAttribute("aria-expanded", "true");
-          if (systemPromptField) {{
-            systemPromptField.disabled = false;
-            systemPromptField.setAttribute("name", "system_prompt");
-          }}
-        }} else {{
-          developerBox.setAttribute("hidden", "");
-          developerToggle.textContent = "Показать prompt";
-          developerToggle.setAttribute("aria-expanded", "false");
-          if (systemPromptField) {{
-            systemPromptField.disabled = true;
-            systemPromptField.removeAttribute("name");
-          }}
-        }}
-      }});
-    }}
     if (clearAll && analyzeForm) {{
       clearAll.addEventListener("click", (event) => {{
         event.preventDefault();
@@ -820,6 +818,7 @@ async def build_pipeline_from_uploads(
     extra_documents: list[UploadFile] | None = None,
     system_prompt: str | None = None,
 ) -> SimpleRAGPipeline:
+    effective_system_prompt = system_prompt if DEVELOPER_MODE else None
     regional_program_bytes = await regional_program_file.read()
     project_files: list[tuple[str, bytes]] = []
 
@@ -861,7 +860,7 @@ async def build_pipeline_from_uploads(
         top_k=DEFAULT_TOP_K,
         chunk_size=DEFAULT_CHUNK_SIZE,
         chunk_overlap=DEFAULT_CHUNK_OVERLAP,
-        base_system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+        base_system_prompt=effective_system_prompt or get_default_system_prompt(),
     )
 
 
@@ -907,12 +906,13 @@ async def api_analyze(
     analysis_task: str = Form(DEFAULT_ANALYSIS_TASK),
     system_prompt: str | None = Form(None),
 ) -> JSONResponse:
+    effective_system_prompt = system_prompt if DEVELOPER_MODE else None
     pipeline = await build_pipeline_from_uploads(
         regional_program_file=regional_program_file,
         project_changes_files=project_changes_file,
         federal_program_file=federal_program_file,
         extra_documents=extra_documents,
-        system_prompt=system_prompt,
+        system_prompt=effective_system_prompt,
     )
     debug_data = pipeline.debug(analysis_task)
     answer = debug_data["answer"]
@@ -921,7 +921,7 @@ async def api_analyze(
             "answer": answer,
             "analysis_task": analysis_task,
             "project_text": pipeline.project_text,
-            "system_prompt": system_prompt,
+            "system_prompt": effective_system_prompt,
             "usage": debug_data["usage"],
             "debug": serialize_debug(debug_data),
         }
@@ -936,13 +936,14 @@ async def analyze(
     extra_documents: list[UploadFile] | None = File(None),
     system_prompt: str | None = Form(None),
 ) -> str:
+    effective_system_prompt = system_prompt if DEVELOPER_MODE else None
     try:
         pipeline = await build_pipeline_from_uploads(
             regional_program_file=regional_program_file,
             project_changes_files=project_changes_file,
             federal_program_file=federal_program_file,
             extra_documents=extra_documents,
-            system_prompt=system_prompt,
+            system_prompt=effective_system_prompt,
         )
         debug_data = pipeline.debug(DEFAULT_ANALYSIS_TASK)
         answer = debug_data["answer"]
@@ -950,13 +951,11 @@ async def analyze(
             answer=answer,
             debug_data=debug_data,
             usage_data=debug_data["usage"],
-            system_prompt_value=system_prompt,
         )
     except Exception as exc:  # noqa: BLE001
         traceback.print_exc()
         return render_page(
             error=f"Не удалось выполнить анализ: {exc}",
-            system_prompt_value=system_prompt,
         )
 
 
@@ -1004,7 +1003,7 @@ async def preview_file(file: UploadFile = File(...)) -> str:
       color: #1f1b18;
     }}
     main {{
-      max-width: 980px;
+      max-width: 1274px;
       margin: 0 auto;
       padding: 24px 18px 40px;
     }}
