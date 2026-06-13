@@ -14,11 +14,15 @@ internal self-check style:
 - additional risks;
 - final conclusion.
 
-Public mode uses `old_prompt.OLD_SYSTEM_PROMPT`, which asks for a more official
-draft conclusion style. Do not merge these modes accidentally.
+Public mode uses `old_prompt.OLD_SYSTEM_PROMPT`, which asks for an official
+draft conclusion style from the position of a specialist of the regional
+economic development ministry. Public mode may formulate an итоговая позиция,
+including whether the project can be согласован, needs доработка, needs
+additional justification, or is not целесообразен in the presented form. Do not
+merge these modes accidentally.
 
 The final answer also includes the UFAS precheck block produced before the main
-RAG answer.
+RAG answer. The two blocks are separated by a simple underscore line.
 
 When changing checking logic or report format, explicitly assess:
 

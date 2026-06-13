@@ -60,7 +60,10 @@ def get_langchain_openai_chat_model(
 def load_npa_sources(npa_files: Sequence[str]) -> list[SourceText]:
     sources: list[SourceText] = []
     for filename in npa_files:
-        text = load_npa_text(filename)
+        try:
+            text = load_npa_text(filename)
+        except Exception:  # noqa: BLE001
+            continue
         if not text.strip():
             continue
         sources.append(
@@ -77,7 +80,10 @@ def load_npa_sources(npa_files: Sequence[str]) -> list[SourceText]:
 def load_uploaded_sources(files: Iterable[tuple[str, bytes]], group: str = "extra") -> list[SourceText]:
     sources: list[SourceText] = []
     for filename, data in files:
-        text = parse_upload_bytes(filename, data)
+        try:
+            text = parse_upload_bytes(filename, data)
+        except Exception:  # noqa: BLE001
+            continue
         if not text.strip():
             continue
         sources.append(SourceText(source=filename, title=filename, group=group, text=text))
@@ -88,21 +94,33 @@ def load_sources_from_paths(paths: Sequence[str | Path], group: str = "extra") -
     files: list[tuple[str, bytes]] = []
     for raw_path in paths:
         path = Path(raw_path)
-        files.append((path.name, path.read_bytes()))
+        try:
+            files.append((path.name, path.read_bytes()))
+        except Exception:  # noqa: BLE001
+            continue
     return load_uploaded_sources(files, group=group)
 
 
 def load_joined_text_from_uploads(files: Iterable[tuple[str, bytes]], label: str) -> str:
     parts: list[str] = []
     for filename, data in files:
-        text = parse_upload_bytes(filename, data).strip()
+        try:
+            text = parse_upload_bytes(filename, data).strip()
+        except Exception:  # noqa: BLE001
+            continue
         if text:
             parts.append(f"### {label}: {filename}\n{text}")
     return "\n\n---\n\n".join(parts)
 
 
 def load_joined_text_from_paths(paths: Sequence[str | Path], label: str) -> str:
-    files = [(Path(raw_path).name, Path(raw_path).read_bytes()) for raw_path in paths]
+    files: list[tuple[str, bytes]] = []
+    for raw_path in paths:
+        path = Path(raw_path)
+        try:
+            files.append((path.name, path.read_bytes()))
+        except Exception:  # noqa: BLE001
+            continue
     return load_joined_text_from_uploads(files, label=label)
 
 

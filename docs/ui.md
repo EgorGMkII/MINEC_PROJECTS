@@ -34,6 +34,13 @@ The result area shows:
 - DOCX download action;
 - retrieval debug details when available.
 
+Model answers should use page-friendly text formatting:
+
+- short paragraphs;
+- numbered points;
+- bold markdown headings like `**Общая оценка проекта**`;
+- no emoji, `###` headings, or long decorative separator lines from the model.
+
 ## Mode-specific UI
 
 The public wrapper must not expose internal/developer controls. The internal app

@@ -35,7 +35,7 @@ docx_dump/
 
 # Office and document files
 *.doc
-# *.docx
+*.docx
 *.pdf
 *.txt
 *.rtf

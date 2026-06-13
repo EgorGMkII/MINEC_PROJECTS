@@ -179,9 +179,40 @@ def list_npa_files() -> list[str]:
     return sorted(path.name for path in NPA_DIR.glob("*.docx"))
 
 
+def _docx_node_text(node: ET.Element) -> str:
+    namespaces = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    parts: list[str] = []
+    for child in node.iter():
+        if child.tag == f"{{{namespaces['w']}}}t" and child.text:
+            parts.append(child.text)
+        elif child.tag == f"{{{namespaces['w']}}}tab":
+            parts.append("\t")
+        elif child.tag in {f"{{{namespaces['w']}}}br", f"{{{namespaces['w']}}}cr"}:
+            parts.append("\n")
+    return "".join(parts).strip()
+
+
+def _docx_table_text(table: ET.Element) -> list[str]:
+    namespaces = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+    rows: list[str] = []
+    for row in table.findall(f".//{{{namespaces['w']}}}tr"):
+        cells: list[str] = []
+        for cell in row.findall(f"{{{namespaces['w']}}}tc"):
+            paragraphs = [
+                _docx_node_text(paragraph)
+                for paragraph in cell.findall(f".//{{{namespaces['w']}}}p")
+            ]
+            cell_text = " ".join(paragraph for paragraph in paragraphs if paragraph).strip()
+            if cell_text:
+                cells.append(cell_text)
+        if cells:
+            rows.append(" | ".join(cells))
+    return rows
+
+
 def _extract_docx_text_via_xml(data: bytes) -> str:
     namespaces = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
-    paragraph_texts: list[str] = []
+    blocks: list[str] = []
 
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         xml_names = ["word/document.xml"]
@@ -196,23 +227,49 @@ def _extract_docx_text_via_xml(data: bytes) -> str:
         for xml_name in xml_names:
             if xml_name not in archive.namelist():
                 continue
-            root = ET.fromstring(archive.read(xml_name))
-            for paragraph in root.findall(".//w:p", namespaces):
-                parts = [node.text for node in paragraph.findall(".//w:t", namespaces) if node.text]
-                text = "".join(parts).strip()
-                if text:
-                    paragraph_texts.append(text)
+            try:
+                root = ET.fromstring(archive.read(xml_name))
+            except ET.ParseError:
+                continue
 
-    return "\n".join(paragraph_texts)
+            container = root.find("w:body", namespaces) or root
+            for child in list(container):
+                if child.tag == f"{{{namespaces['w']}}}p":
+                    text = _docx_node_text(child)
+                    if text:
+                        blocks.append(text)
+                elif child.tag == f"{{{namespaces['w']}}}tbl":
+                    table_rows = _docx_table_text(child)
+                    if table_rows:
+                        blocks.append("\n".join(table_rows))
+
+    return "\n\n".join(blocks)
 
 
 def read_docx_bytes(data: bytes) -> str:
+    xml_error: Exception | None = None
+    docx_error: Exception | None = None
+
+    try:
+        xml_text = _extract_docx_text_via_xml(data)
+        if xml_text.strip():
+            return xml_text
+    except Exception as exc:  # noqa: BLE001
+        xml_error = exc
+
     try:
         document = docx.Document(io.BytesIO(data))
-        return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip())
-    except Exception:
-        # Recover plain text from OOXML when python-docx fails on broken media metadata.
-        return _extract_docx_text_via_xml(data)
+        docx_text = "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip())
+        if docx_text.strip():
+            return docx_text
+    except Exception as exc:  # noqa: BLE001
+        docx_error = exc
+
+    if xml_error:
+        raise xml_error
+    if docx_error:
+        raise docx_error
+    return ""
 
 
 def read_pdf_bytes(data: bytes) -> str:

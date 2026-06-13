@@ -13,8 +13,13 @@ The web routes in `rag_web.py` accept:
 - supporting/extra documents: multiple files, optional.
 
 `rag_support.parse_upload_bytes` supports `docx`, `pdf`, `txt`, and `xlsx`.
-DOCX parsing first uses `python-docx`; if that fails, the fallback reads OOXML
-`word/document.xml`, headers, and footers directly.
+DOCX parsing uses robust OOXML text extraction first, ignores media artifacts,
+and reads text from `word/document.xml`, headers, footers, and tables. Table rows
+are included as plain text with cells separated by ` | `. If OOXML extraction
+cannot recover text, `python-docx` is used as a fallback.
+
+Source loaders skip individual files that cannot be read or parsed. A broken
+file in a multi-file upload should not fail the whole pipeline.
 
 ## Source model
 

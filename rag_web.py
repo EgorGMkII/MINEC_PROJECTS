@@ -47,15 +47,33 @@ def render_inline_markup(text: str) -> str:
 
 
 def render_docx_preview_html(filename: str, content: bytes) -> str:
-    result = mammoth.convert_to_html(BytesIO(content))
-    body_html = result.value or "<p>Документ не содержит отображаемого текста.</p>"
+    fallback_note = ""
+    try:
+        result = mammoth.convert_to_html(BytesIO(content))
+        body_html = result.value or "<p>Документ не содержит отображаемого текста.</p>"
+    except Exception:  # noqa: BLE001
+        try:
+            parsed_text = parse_upload_bytes(filename, content)
+        except Exception as exc:  # noqa: BLE001
+            parsed_text = f"Не удалось извлечь текст из документа: {exc}"
+        body_html = f"<pre>{html.escape(parsed_text)}</pre>"
+        result = None
+        fallback_note = "<p>HTML-предпросмотр недоступен, показан извлеченный plain text.</p>"
     messages_html = ""
-    if result.messages:
+    if result and result.messages:
         items = "".join(f"<li>{html.escape(message.message)}</li>" for message in result.messages)
         messages_html = f"""
         <section class="notes">
           <h2>Замечания конвертации</h2>
+          {fallback_note}
           <ul>{items}</ul>
+        </section>
+        """
+    elif fallback_note:
+        messages_html = f"""
+        <section class="notes">
+          <h2>Замечания конвертации</h2>
+          {fallback_note}
         </section>
         """
     escaped_name = html.escape(filename)
@@ -94,6 +112,14 @@ def render_docx_preview_html(filename: str, content: bytes) -> str:
     p, li {{
       font-size: 1rem;
       line-height: 1.6;
+    }}
+    pre {{
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Calibri, Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.55;
+      margin: 0;
     }}
     table {{
       width: 100%;

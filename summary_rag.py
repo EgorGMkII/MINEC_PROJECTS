@@ -454,7 +454,7 @@ def compose_final_answer(main_answer: str, ufas_precheck_text: str) -> str:
         return main_answer
     if not main_answer:
         return ufas_precheck_text
-    return f"{ufas_precheck_text}\n\n============================================================\n\n{main_answer}"
+    return f"{ufas_precheck_text}\n\n______________________________\n\n{main_answer}"
 
 
 def build_retrieval_sources_with_extra_summaries(
