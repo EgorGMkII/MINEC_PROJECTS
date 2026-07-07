@@ -1,6 +1,14 @@
 __pycache__/
 .ipynb_checkpoints/
+.git/
+.agents/
+.codex/
+AGENTS.md
+docs/
 docx_dump/
+66-п/
+test_cases/
 tests.ipynb
 answer.docx
 notebook_rag_demo.md
+*.zip

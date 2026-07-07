@@ -15,11 +15,16 @@ env/
 
 # Notebook and local artifacts
 tests.ipynb
+AGENTS.md
+docs/
+.agents/
+.codex/
 
 # Generated outputs
 answer.docx
 docx_dump/
 *.log
+*.zip
 
 # Summary/cache artifacts
 **/summaries/
@@ -27,8 +32,8 @@ docx_dump/
 
 # Document corpora and local document folders
 # 66-п/
-# docx_dump/
-# test_cases/
+docx_dump/
+test_cases/
 # npa/
 # УФАС/
 

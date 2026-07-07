@@ -16,18 +16,22 @@
 - `npa/` — нормативные акты для retrieval;
 - `УФАС/UFAS.txt` — правила для отдельной быстрой проверки типовых ошибок.
 
-Текущий веб-вход находится в [rag_web.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/rag_web.py), основной pipeline — в [summary_rag.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/summary_rag.py).
+Эти папки не должны храниться в публичном репозитории. Для локального запуска и сборки Docker-образа их нужно положить рядом с кодом вручную.
+
+Текущий веб-вход находится в `rag_web.py`, основной pipeline — в `summary_rag.py`.
 
 ## Архитектура
 
 Основные файлы:
 
-- [rag_web.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/rag_web.py) — FastAPI-приложение и HTML-интерфейс.
-- [summary_rag.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/summary_rag.py) — основной pipeline обработки.
-- [simple_rag.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/simple_rag.py) — общие функции парсинга, чанкинга и BM25.
-- [rag_support.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/rag_support.py) — основной prompt, парсинг файлов, служебные helper-функции.
-- [summary_prompts.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/summary_prompts.py) — prompt’ы для суммаризации.
-- [ufas_prompts.py](/abs/path/c:/Users/egorg/Documents/RAG_минцифры/cct_minek-main/ufas_prompts.py) — prompt для UFAS precheck.
+- `rag_web.py` — FastAPI-приложение и HTML-интерфейс.
+- `rag_web_public.py` — public-версия приложения.
+- `summary_rag.py` — основной pipeline обработки.
+- `simple_rag.py` — общие функции парсинга, чанкинга и BM25.
+- `rag_support.py` — основной prompt, парсинг файлов, служебные helper-функции.
+- `old_prompt.py` — public prompt для более официального проекта заключения.
+- `summary_prompts.py` — prompt’ы для суммаризации.
+- `ufas_prompts.py` — prompt для UFAS precheck.
 
 ## Пайплайн
 
@@ -186,16 +190,51 @@ LLM формирует итоговую самопроверку в рабоче
 python -m pip install -r requirements.txt
 ```
 
-Запустить сервис:
+Создать локальный env-файл, например `.env`:
+
+```text
+OPENAI_API_KEY=your_real_key
+OPENAI_BASE_URL=https://api.proxyapi.ru/openai/v1
+OPENAI_MODEL=gpt-5.3-chat-latest
+```
+
+`.env` не должен попадать в git. Без `OPENAI_API_KEY` pipeline не сможет вызвать LLM.
+
+Перед запуском положить рядом с кодом скрытые папки:
+
+```text
+npa/
+УФАС/
+```
+
+Ожидаемая структура:
+
+```text
+npa/
+  *.docx
+УФАС/
+  UFAS.txt
+```
+
+В репозитории хранятся только пустые папки-заглушки. Содержимое этих папок локальное и игнорируется git.
+
+Запустить developer-версию:
 
 ```powershell
 python -m uvicorn rag_web:app --reload --port 8010
+```
+
+Запустить public-версию:
+
+```powershell
+python -m uvicorn rag_web_public:app --reload --port 8011
 ```
 
 Открыть:
 
 ```text
 http://127.0.0.1:8010/
+http://127.0.0.1:8011/
 ```
 
 ## Docker
@@ -212,13 +251,21 @@ docker build -t egorggggg/cct-rag:latest .
 docker run -d --name cct-rag -p 8010:8000 --env-file /path/to/cct-rag.env egorggggg/cct-rag:latest
 ```
 
-Пример env-файла:
+Для public-версии можно запустить отдельный контейнер с другим entrypoint:
+
+```bash
+docker run -d --name cct-rag-public -p 8011:8000 --env-file /path/to/cct-rag.env egorggggg/cct-rag:latest uvicorn rag_web_public:app --host 0.0.0.0 --port 8000
+```
+
+Пример `/path/to/cct-rag.env`:
 
 ```text
 OPENAI_API_KEY=your_real_key
 OPENAI_BASE_URL=https://api.proxyapi.ru/openai/v1
 OPENAI_MODEL=gpt-5.3-chat-latest
 ```
+
+Перед сборкой Docker-образа убедиться, что рядом с кодом есть `npa/` и `УФАС/`, если образ должен содержать скрытый корпус внутри себя.
 
 ## Что считается текущим production-путём
 
@@ -231,4 +278,4 @@ OPENAI_MODEL=gpt-5.3-chat-latest
 - `summary_prompts.py`
 - `ufas_prompts.py`
 
-Legacy-файлы вроде `main.py`, `app.py` и каталога `GOVNO/` не участвуют в текущем веб-пайплайне.
+Legacy-файлы вроде `main.py` и `app.py` не участвуют в текущем веб-пайплайне.

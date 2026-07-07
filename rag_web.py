@@ -46,6 +46,49 @@ def render_inline_markup(text: str) -> str:
     return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
 
 
+def normalize_answer_text_for_display(text: str) -> str:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    label_pattern = (
+        r"Фрагмент:|Как исправить:|Почему это важно:|"
+        r"Что проверить или уточнить:|Ошибка:"
+    )
+    normalized = re.sub(rf"(?<!\n)\s+({label_pattern})", r"\n\1", normalized)
+    normalized = re.sub(r"\s+•\s*", "\n- ", normalized)
+    normalized = re.sub(r"(?<=[;:])\s+[–-]\s+", "\n- ", normalized)
+    normalized = re.sub(r"(?m)^\s*•\s*", "- ", normalized)
+    normalized = re.sub(r"(?m)^\s*[–-]\s+", "- ", normalized)
+    normalized = re.sub(r"\n{3,}", "\n\n", normalized)
+    return normalized.strip()
+
+
+def render_answer_html(answer: str) -> str:
+    lines = normalize_answer_text_for_display(answer).splitlines()
+    html_parts: list[str] = []
+    list_items: list[str] = []
+
+    def flush_list() -> None:
+        if not list_items:
+            return
+        html_parts.append("<ul>" + "".join(list_items) + "</ul>")
+        list_items.clear()
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            flush_list()
+            continue
+
+        if line.startswith("- "):
+            list_items.append(f"<li>{render_inline_markup(line[2:].strip())}</li>")
+            continue
+
+        flush_list()
+        html_parts.append(f"<p>{render_inline_markup(line)}</p>")
+
+    flush_list()
+    return "".join(html_parts)
+
+
 def render_docx_preview_html(filename: str, content: bytes) -> str:
     fallback_note = ""
     try:
@@ -175,8 +218,7 @@ def render_page(
 
     answer_html = ""
     if answer:
-        paragraphs = [block.strip() for block in answer.split("\n\n") if block.strip()]
-        answer_html = "".join(f"<p>{render_inline_markup(block)}</p>" for block in paragraphs)
+        answer_html = render_answer_html(answer)
 
     error_html = f"<div class='error'>{html.escape(error)}</div>" if error else ""
 
@@ -437,6 +479,13 @@ def render_page(
     }}
     .answer p {{
       margin: 0 0 12px;
+    }}
+    .answer ul {{
+      margin: 0 0 12px 22px;
+      padding-left: 18px;
+    }}
+    .answer li {{
+      margin-bottom: 6px;
     }}
     .usage {{
       margin: 0 0 12px;
