@@ -49,3 +49,8 @@ test_cases/
 *.csv
 *.ppt
 *.pptx
+
+# Keep public UFAS rules tracked
+!УФАС/
+!УФАС/.gitkeep
+!УФАС/UFAS.txt
